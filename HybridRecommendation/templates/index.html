@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tunefinder ~ neural music discovery</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #f5f5f0;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 60px;
+            padding-bottom: 30px;
+            border-bottom: 4px solid #1a1a1a;
+        }
+
+        .header h1 {
+            font-family: 'Space Mono', monospace;
+            font-size: 2.8em;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+
+        .header p {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.95em;
+            color: #666;
+            margin-top: 12px;
+        }
+
+        .main-card {
+            background: #fff;
+            border: 3px solid #1a1a1a;
+            padding: 32px;
+            margin-bottom: 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            height: 6px;
+            background: linear-gradient(90deg, #ff6b6b 0%, #4ecdc4 50%, #ffe66d 100%);
+        }
+
+        .section-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.2em;
+            margin-bottom: 24px;
+            color: #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .step-number {
+            background: #1a1a1a;
+            color: #ffe66d;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+            border: 2px solid #1a1a1a;
+        }
+
+        /* Artist Search */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 1em;
+            font-family: 'Inter', sans-serif;
+            background: #fafafa;
+            border: 2px solid #1a1a1a;
+            outline: none;
+            transition: all 0.2s;
+            color: #1a1a1a;
+        }
+
+        .search-input::placeholder {
+            color: #999;
+        }
+
+        .search-input:focus {
+            background: #fff;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+            transform: translate(-2px, -2px);
+        }
+
+        .search-results {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 2px solid #1a1a1a;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.1);
+        }
+
+        .search-result-item {
+            padding: 12px 18px;
+            cursor: pointer;
+            transition: background 0.1s;
+            color: #1a1a1a;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background: #ffe66d;
+        }
+
+        /* Selected Artists */
+        .selected-artists {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+            min-height: 60px;
+        }
+
+        .artist-tag {
+            background: #fff;
+            border: 2px solid #1a1a1a;
+            color: #1a1a1a;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            animation: slideIn 0.3s ease;
+            font-weight: 600;
+            font-family: 'Space Mono', monospace;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .artist-tag button {
+            background: #1a1a1a;
+            border: none;
+            color: #ffe66d;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.2s;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+        }
+
+        .artist-tag button:hover {
+            background: #ff6b6b;
+            color: #fff;
+        }
+
+        /* Exploration Slider */
+        .slider-container {
+            margin: 30px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            font-size: 0.9em;
+            color: #666;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .slider-value {
+            font-weight: 700;
+            color: #1a1a1a;
+            font-size: 1em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 2px solid #1a1a1a;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #1a1a1a;
+            cursor: pointer;
+            border: 2px solid #1a1a1a;
+            box-shadow: 2px 2px 0 #ffe66d;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #ff6b6b;
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #1a1a1a;
+            cursor: pointer;
+            border: 2px solid #1a1a1a;
+            box-shadow: 2px 2px 0 #ffe66d;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #ff6b6b;
+            transform: scale(1.1);
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.75em;
+            color: #999;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Button */
+        .recommend-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #fff;
+            background: #1a1a1a;
+            border: 3px solid #1a1a1a;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.2);
+        }
+
+        .recommend-btn:hover:not(:disabled) {
+            background: #ff6b6b;
+            border-color: #1a1a1a;
+            transform: translate(-2px, -2px);
+            box-shadow: 7px 7px 0 rgba(0,0,0,0.2);
+        }
+
+        .recommend-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+        }
+
+        .recommend-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Results */
+        .results-container {
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .exploration-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 0.8em;
+            font-weight: 700;
+            border: 2px solid #1a1a1a;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .exploration-safe {
+            background: #d4f4dd;
+            color: #1a6b3f;
+        }
+
+        .exploration-balanced {
+            background: #ffe66d;
+            color: #8b6914;
+        }
+
+        .exploration-adventurous {
+            background: #ffd4e5;
+            color: #a8174f;
+        }
+
+        .recommendation-item {
+            background: #fafafa;
+            border: 2px solid #1a1a1a;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .recommendation-item:hover {
+            background: #fff;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+            transform: translate(-2px, -2px);
+        }
+
+        .recommendation-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #ff6b6b 0%, #4ecdc4 50%, #ffe66d 100%);
+        }
+
+        .rank {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #999;
+            min-width: 40px;
+            font-variant-numeric: tabular-nums;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .artist-info {
+            flex: 1;
+        }
+
+        .artist-name {
+            font-size: 1.05em;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #1a1a1a;
+        }
+
+        .artist-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8em;
+            color: #666;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .score-bar {
+            width: 60px;
+            height: 8px;
+            background: #e0e0e0;
+            border: 1px solid #999;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: #1a1a1a;
+            transition: width 0.5s ease;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 40px;
+            display: none;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #1a1a1a;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: #ffe0e0;
+            color: #a00;
+            border: 2px solid #a00;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: #f0f0f0;
+            padding: 16px;
+            border-left: 4px solid #1a1a1a;
+            margin: 20px 0;
+            font-size: 0.9em;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: #1a1a1a;
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* Footer credit */
+        .footer {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 30px;
+            border-top: 2px dashed #ccc;
+            color: #999;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8em;
+        }
+
+        .footer a {
+            color: #666;
+            text-decoration: underline;
+        }
+
+        .footer a:hover {
+            color: #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>tunefinder ♪</h1>
+            <p>Hybrid Recommender System</p>
+            <p style="margin-top: 4px; font-size: 0.85em; color: #999;">powered by content-based filtering and neural collaborative filtering</p>
+        </div>
+
+        <div class="main-card">
+            <div class="section-title">
+                <span class="step-number">1</span>
+                <span>Pick Your Favorites</span>
+            </div>
+
+            <div class="search-container">
+                <input
+                    type="text"
+                    id="artistSearch"
+                    class="search-input"
+                    placeholder="search for an artist..."
+                    autocomplete="off"
+                >
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <div id="selectedArtists" class="selected-artists">
+                <!-- Selected artists will appear here -->
+            </div>
+
+            <div class="info-box">
+                <strong>tip:</strong> choose 3-5 artists that represent your taste. the more diverse, the better!
+            </div>
+        </div>
+
+        <div class="main-card">
+            <div class="section-title">
+                <span class="step-number">2</span>
+                <span>How Adventurous?</span>
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>exploration level</span>
+                    <span class="slider-value" id="explorationValue">0.5 — balanced</span>
+                </div>
+
+                <input
+                    type="range"
+                    id="explorationSlider"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.5"
+                >
+
+                <div class="slider-labels">
+                    <span>← safe</span>
+                    <span>balanced</span>
+                    <span>adventurous →</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>what this means:</strong><br>
+                <strong>safe (0.0-0.3)</strong> — stick to what you'll definitely love<br>
+                <strong>balanced (0.4-0.6)</strong> — mix of familiar + some surprises<br>
+                <strong>adventurous (0.7-1.0)</strong> — explore totally new territory
+            </div>
+
+            <button id="recommendBtn" class="recommend-btn" disabled>
+                → Find Music ←
+            </button>
+        </div>
+
+        <div id="loadingSection" class="loading">
+            <div class="spinner"></div>
+            <p>crunching numbers...</p>
+        </div>
+
+        <div id="errorSection" class="error"></div>
+
+        <div id="resultsSection" class="results-container">
+            <div class="main-card">
+                <div class="results-header">
+                    <div class="section-title">
+                        <span class="step-number">3</span>
+                        <span>Your Recommendations</span>
+                    </div>
+                    <div id="explorationBadge" class="exploration-badge"></div>
+                </div>
+
+                <div id="recommendations">
+                    <!-- Recommendations will appear here -->
+                </div>
+            </div>
+
+            <div class="main-card" id="nicheSection" style="display: none;">
+                <div class="results-header">
+                    <div class="section-title">
+                        <span>Hidden Gems</span>
+                    </div>
+                    <div class="exploration-badge" style="background: #ffe66d; color: #8b6914;">
+                        niche artists
+                    </div>
+                </div>
+
+                <div id="nicheRecommendations">
+                    <!-- Niche recommendations will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p style="margin-top: 8px;">training data: <a href="https://grouplens.org/datasets/hetrec-2011/" target="_blank">last.fm hetrec-2011</a></p>
+        </div>
+    </div>
+
+    <script>
+        let selectedArtists = [];
+        let searchTimeout;
+
+        const artistSearch = document.getElementById('artistSearch');
+        const searchResults = document.getElementById('searchResults');
+        const selectedArtistsContainer = document.getElementById('selectedArtists');
+        const recommendBtn = document.getElementById('recommendBtn');
+        const explorationSlider = document.getElementById('explorationSlider');
+        const explorationValue = document.getElementById('explorationValue');
+        const loadingSection = document.getElementById('loadingSection');
+        const errorSection = document.getElementById('errorSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const recommendations = document.getElementById('recommendations');
+        const explorationBadge = document.getElementById('explorationBadge');
+
+        // Update exploration slider display
+        explorationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            let label;
+
+            if (value < 0.3) {
+                label = `${value.toFixed(2)} — safe`;
+            } else if (value < 0.7) {
+                label = `${value.toFixed(2)} — balanced`;
+            } else {
+                label = `${value.toFixed(2)} — wild`;
+            }
+
+            explorationValue.textContent = label;
+        });
+
+        // Artist search
+        artistSearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`/api/search_artists?q=${encodeURIComponent(query)}`)
+                    .then(r => r.json())
+                    .then(results => {
+                        if (results.length === 0) {
+                            searchResults.style.display = 'none';
+                            return;
+                        }
+
+                        searchResults.innerHTML = results.map(artist =>
+                            `<div class="search-result-item" data-name="${artist.name}">
+                                ${artist.name}
+                            </div>`
+                        ).join('');
+
+                        searchResults.style.display = 'block';
+
+                        // Add click handlers
+                        document.querySelectorAll('.search-result-item').forEach(item => {
+                            item.addEventListener('click', () => {
+                                addArtist(item.dataset.name);
+                            });
+                        });
+                    });
+            }, 300);
+        });
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchResults.contains(e.target) && e.target !== artistSearch) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        function addArtist(name) {
+            if (selectedArtists.length >= 5) {
+                alert('max 5 artists!');
+                return;
+            }
+
+            if (selectedArtists.includes(name)) {
+                return;
+            }
+
+            selectedArtists.push(name);
+            updateSelectedArtists();
+
+            artistSearch.value = '';
+            searchResults.style.display = 'none';
+        }
+
+        function removeArtist(name) {
+            selectedArtists = selectedArtists.filter(a => a !== name);
+            updateSelectedArtists();
+        }
+
+        function updateSelectedArtists() {
+            selectedArtistsContainer.innerHTML = selectedArtists.map(artist =>
+                `<div class="artist-tag">
+                    <span>${artist}</span>
+                    <button onclick="removeArtist('${artist.replace(/'/g, "\\'")}')">×</button>
+                </div>`
+            ).join('');
+
+            recommendBtn.disabled = selectedArtists.length < 3;
+        }
+
+        // Get recommendations
+        recommendBtn.addEventListener('click', async () => {
+            if (selectedArtists.length < 3) {
+                return;
+            }
+
+            // Show loading
+            loadingSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            errorSection.style.display = 'none';
+
+            try {
+                // Fetch both regular and niche recommendations in parallel
+                const [regularResponse, nicheResponse] = await Promise.all([
+                    fetch('/api/recommend', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            favorites: selectedArtists,
+                            exploration: parseFloat(explorationSlider.value),
+                            n_recommendations: 20
+                        })
+                    }),
+                    fetch('/api/recommend_niche', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            favorites: selectedArtists,
+                            n_recommendations: 10,
+                            popularity_threshold: 25.0
+                        })
+                    })
+                ]);
+
+                const regularData = await regularResponse.json();
+                const nicheData = await nicheResponse.json();
+
+                if (regularData.error) {
+                    throw new Error(regularData.error);
+                }
+
+                displayRecommendations(regularData);
+                displayNicheRecommendations(nicheData);
+
+            } catch (error) {
+                errorSection.textContent = `Error: ${error.message}`;
+                errorSection.style.display = 'block';
+            } finally {
+                loadingSection.style.display = 'none';
+            }
+        });
+
+        function displayRecommendations(data) {
+            const exploration = data.exploration_level;
+
+            // Update badge
+            let badgeClass, badgeText;
+            if (exploration < 0.3) {
+                badgeClass = 'exploration-safe';
+                badgeText = 'safe picks';
+            } else if (exploration < 0.7) {
+                badgeClass = 'exploration-balanced';
+                badgeText = 'balanced mix';
+            } else {
+                badgeClass = 'exploration-adventurous';
+                badgeText = 'wild cards';
+            }
+
+            explorationBadge.className = `exploration-badge ${badgeClass}`;
+            explorationBadge.textContent = badgeText;
+
+            // Display recommendations
+            recommendations.innerHTML = data.recommendations.map(rec => `
+                <div class="recommendation-item">
+                    <div class="rank">#${rec.rank}</div>
+                    <div class="artist-info">
+                        <div class="artist-name">${rec.name}</div>
+                        <div class="artist-stats">
+                            <div class="stat">
+                                <span>score:</span>
+                                <div class="score-bar">
+                                    <div class="score-fill" style="width: ${rec.score * 100}%"></div>
+                                </div>
+                            </div>
+                            <div class="stat">pop: ${rec.popularity}%</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayNicheRecommendations(data) {
+            const nicheSection = document.getElementById('nicheSection');
+            const nicheRecommendations = document.getElementById('nicheRecommendations');
+
+            // If no niche recommendations or error, hide the section
+            if (!data.recommendations || data.recommendations.length === 0 || data.error) {
+                nicheSection.style.display = 'none';
+                return;
+            }
+
+            // Display niche recommendations
+            nicheRecommendations.innerHTML = data.recommendations.map(rec => `
+                <div class="recommendation-item">
+                    <div class="rank">#${rec.rank}</div>
+                    <div class="artist-info">
+                        <div class="artist-name">${rec.name}</div>
+                        <div class="artist-stats">
+                            <div class="stat">
+                                <span>score:</span>
+                                <div class="score-bar">
+                                    <div class="score-fill" style="width: ${rec.score * 100}%"></div>
+                                </div>
+                            </div>
+                            <div class="stat">pop: ${rec.popularity}%</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            nicheSection.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
